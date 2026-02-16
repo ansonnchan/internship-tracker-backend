@@ -1,62 +1,84 @@
 package com.anson.internshiptracker.service;
 
+import com.anson.internshiptracker.exception.ResourceNotFoundException;
+import com.anson.internshiptracker.exception.UnauthorizedException;
 import com.anson.internshiptracker.model.Application;
-import com.anson.internshiptracker.repository.ApplicationRepository;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-import java.util.List;
-import java.util.Optional;
-import java.time.LocalDate;
 import com.anson.internshiptracker.model.ApplicationStatus;
+import com.anson.internshiptracker.repository.ApplicationRepository;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDate;
+import java.util.List;
 
 @Service
+@Transactional
 public class ApplicationService {
     
     private final ApplicationRepository applicationRepository;
+    
     public ApplicationService(ApplicationRepository applicationRepository) {
         this.applicationRepository = applicationRepository;
     }
-
-    //create new application
+    
+    // Create new application
     public Application createApplication(Application application) {
         application.setStatus(ApplicationStatus.APPLIED);
         application.setDateApplied(LocalDate.now());
         return applicationRepository.save(application);
     }
-
-    //get all applications
+    
+    // Get all applications for a specific user
+    public List<Application> getAllApplicationsByUser(Long userId) {
+        return applicationRepository.findByUserId(userId);
+    }
+    
+    // Get all applications 
     public List<Application> getAllApplications() {
         return applicationRepository.findAll();
     }
-
-    //get application by ID
-    public Optional<Application> getApplicationbyId(Long id) {
-        return applicationRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Application not found with id: " , id));
-    }
-
-    //update application
-    public Application updateApplication(Long id, Application updatedApp) {
+    
+    // Get application by ID 
+    public Application getApplicationById(Long id) {
         return applicationRepository.findById(id)
-            .map(app -> { 
-                app.setCompany(updatedApp.getCompany());
-                app.setPosition(updatedApp.getPosition());
-                app.setStatus(updatedApp.getStatus());
-                app.setDateApplied(updatedApp.getDateApplied());
-                return applicationRepository.save(app);
-            }).orElseThrow(() -> new RuntimeException("Application not found")); 
+            .orElseThrow(() -> new ResourceNotFoundException("Application", id));
     }
-
-    //delete application
-    public void deleteApplication(Long id) {
-        applicationRepository.deleteById(id);
+    
+    // Get application by ID with user verification
+    public Application getApplicationByIdAndUser(Long id, Long userId) {
+        Application application = getApplicationById(id);
+        
+        // verify the application belongs to the user
+        if (!application.getUser().getId().equals(userId)) {
+            throw new UnauthorizedException("You don't have permission to access this application");
+        }
+        
+        return application;
     }
-
-    //update status only 
-    public Application updateStatus(Long id, String status) {
-    return applicationRepository.findById(id)
-        .map(app -> {
-            app.setStatus(ApplicationStatus.valueOf(status));
-            return applicationRepository.save(app);
-        }).orElseThrow(() -> new RuntimeException("Application not found"));
-}
+    
+    // Update application with user verification
+    public Application updateApplication(Long id, Application updatedApp, Long userId) {
+        Application existingApp = getApplicationByIdAndUser(id, userId);
+        
+        
+        existingApp.setCompany(updatedApp.getCompany());
+        existingApp.setPosition(updatedApp.getPosition());
+        existingApp.setStatus(updatedApp.getStatus());
+        existingApp.setDateApplied(updatedApp.getDateApplied());
+        
+        return applicationRepository.save(existingApp);
+    }
+    
+    // Delete application with user verification
+    public void deleteApplication(Long id, Long userId) {
+        Application application = getApplicationByIdAndUser(id, userId);
+        applicationRepository.delete(application);
+    }
+    
+    // Update status only 
+    public Application updateStatus(Long id, ApplicationStatus status, Long userId) {
+        Application application = getApplicationByIdAndUser(id, userId);
+        application.setStatus(status);
+        return applicationRepository.save(application);
+    }
 }
