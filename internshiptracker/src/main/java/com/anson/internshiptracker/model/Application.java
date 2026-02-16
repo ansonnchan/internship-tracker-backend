@@ -14,7 +14,7 @@ public class Application {
 
     private String company;
     private String position;
-    private String status; // APPLIED, INTERVIEW, OFFER, REJECTED, OA
+    private String status; // APPLIED, INTERVIEW, OFFER, REJECTED
     private LocalDate dateApplied;
 
     @ManyToOne

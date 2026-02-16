@@ -3,10 +3,21 @@ package com.anson.internshiptracker.util;
 public class EmailClassifier {
     
     public static String classify(String emailSubject, String emailBody) {
+        if (emailSubject == null && emailBody == null) {
+            return "OTHER";
+        }
+        else if (emailSubject == null) {
+            emailSubject = "";
+        }
+        else if (emailBody == null) {
+            emailBody = "";
+        }
+
         //combine emailSubject and emailBody 
         String combinedText = (emailSubject + " " + emailBody).toLowerCase();
-    
+        
         // check for offer/accepted keywords
+        
         if (containsAny(combinedText, 
             "offer", "congratulations", "pleased", "excited", "accepted",
             "job offer", "hired", "successful")) {
