@@ -1,33 +1,53 @@
 package com.anson.internshiptracker.controller;
 
+import com.anson.internshiptracker.model.ApplicationStatus;
+import com.anson.internshiptracker.model.User;
 import com.anson.internshiptracker.service.EmailService;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.anson.internshiptracker.service.UserService;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/emails")
-@CrossOrigin(origins = "*")
 public class EmailController {
     
-    @Autowired
-    private EmailService emailService;
-
-    //classify and update application status
+    private final EmailService emailService;
+    private final UserService userService;
+    
+    public EmailController(EmailService emailService, UserService userService) {
+        this.emailService = emailService;
+        this.userService = userService;
+    }
+    
+    // Classify and update application status 
     @PostMapping("/classify-and-update")
-    public ResponseEntity<ClassificationResponse> classifyAndUpdate(@RequestBody EmailClassificationRequest request) {
-        String status = emailService.classifyAndUpdate(request.getApplicationId(), request.getEmailSubject(), request.getEmailBody());
-        return ResponseEntity.ok(new ClassificationResponse(status));
-}
-//
-    //classify only
-    @PostMapping("/classify")
-    public ResponseEntity<ClassificationResponse> classifyOnly(@RequestBody EmailTextRequest request) {
-        String status = emailService.classifyOnly(request.getSubject(), request.getBody());
+    public ResponseEntity<ClassificationResponse> classifyAndUpdate(
+            @RequestBody EmailClassificationRequest request,
+            Authentication authentication) {
+        
+        String email = authentication.getName();
+        User currentUser = userService.findByEmail(email)
+            .orElseThrow(() -> new RuntimeException("User not found"));
+        
+        ApplicationStatus status = emailService.classifyAndUpdate(
+            request.getApplicationId(),
+            request.getEmailSubject(),
+            request.getEmailBody(),
+            currentUser.getId()
+        );
+        
         return ResponseEntity.ok(new ClassificationResponse(status));
     }
-
-    //Request DTOs
+    
+    // Classify only (no update) 
+    @PostMapping("/classify")
+    public ResponseEntity<ClassificationResponse> classifyOnly(@RequestBody EmailTextRequest request) {
+        ApplicationStatus status = emailService.classifyOnly(request.getSubject(), request.getBody());
+        return ResponseEntity.ok(new ClassificationResponse(status));
+    }
+    
+    // Request DTOs
     public static class EmailClassificationRequest {
         private Long applicationId;
         private String emailSubject;
@@ -36,13 +56,28 @@ public class EmailController {
         public Long getApplicationId() {
             return applicationId;
         }
+        
         public String getEmailSubject() {
             return emailSubject;
         }
+        
         public String getEmailBody() {
             return emailBody;
         }
+        
+        public void setApplicationId(Long applicationId) {
+            this.applicationId = applicationId;
+        }
+        
+        public void setEmailSubject(String emailSubject) {
+            this.emailSubject = emailSubject;
+        }
+        
+        public void setEmailBody(String emailBody) {
+            this.emailBody = emailBody;
+        }
     }
+    
     public static class EmailTextRequest {
         private String subject;
         private String body;
@@ -50,18 +85,36 @@ public class EmailController {
         public String getSubject() {
             return subject;
         }
+        
         public String getBody() {
             return body;
         }
-    }
-    public static class ClassificationResponse {
-        private String status;
         
-        public ClassificationResponse(String status) {
-            this.status = status;
+        public void setSubject(String subject) {
+            this.subject = subject;
         }
-        public String getStatus() {
+        
+        public void setBody(String body) {
+            this.body = body;
+        }
+    }
+    
+    // Response DTO 
+    public static class ClassificationResponse {
+        private ApplicationStatus status;
+        private String statusName;
+        
+        public ClassificationResponse(ApplicationStatus status) {
+            this.status = status;
+            this.statusName = status.name();
+        }
+        
+        public ApplicationStatus getStatus() {
             return status;
+        }
+        
+        public String getStatusName() {
+            return statusName;
         }
     }
 }
