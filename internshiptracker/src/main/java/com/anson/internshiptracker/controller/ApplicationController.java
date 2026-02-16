@@ -1,71 +1,125 @@
 package com.anson.internshiptracker.controller;
 
 import com.anson.internshiptracker.model.Application;
+import com.anson.internshiptracker.model.User;
 import com.anson.internshiptracker.service.ApplicationService;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.anson.internshiptracker.service.UserService;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
-
 
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/applications")
-@CrossOrigin(origins = "*")
 public class ApplicationController {
-
-    @Autowired
-    private ApplicationService applicationService;
     
-    //create new application
+    private final ApplicationService applicationService;
+    private final UserService userService;
+    
+    public ApplicationController(ApplicationService applicationService, UserService userService) {
+        this.applicationService = applicationService;
+        this.userService = userService;
+    }
+    
+    // Create new application 
     @PostMapping
-    public ResponseEntity<Application> createApplication(@RequestBody Application application) {
+    public ResponseEntity<Application> createApplication(
+            @Valid @RequestBody Application application,
+            Authentication authentication) {
+        
+        // Get current user from JWT token
+        String email = authentication.getName();
+        User currentUser = userService.findByEmail(email)
+            .orElseThrow(() -> new RuntimeException("User not found"));
+        
+        // Associate application with user
+        application.setUser(currentUser);
+        
         Application created = applicationService.createApplication(application);
         return ResponseEntity.ok(created);
     }
-
-    //get all applications
+    
+    // Get all applications for current user
     @GetMapping
-    public ResponseEntity<List<Application>> getAllApplications() {
-        List<Application> applications = applicationService.getAllApplications();
+    public ResponseEntity<List<Application>> getAllApplications(Authentication authentication) {
+        String email = authentication.getName();
+        User currentUser = userService.findByEmail(email)
+            .orElseThrow(() -> new RuntimeException("User not found"));
+        
+        List<Application> applications = applicationService.getAllApplicationsByUser(currentUser.getId());
         return ResponseEntity.ok(applications);
     }
-
-    //get application by ID
+    
+    // Get application by ID 
     @GetMapping("/{id}")
-    public ResponseEntity<Application> getApplicationById(@PathVariable Long id) {
-        return applicationService.getApplicationbyId(id).map(ResponseEntity::ok).orElse(ResponseEntity.notFound().build());
+    public ResponseEntity<Application> getApplicationById(
+            @PathVariable Long id,
+            Authentication authentication) {
+        
+        String email = authentication.getName();
+        User currentUser = userService.findByEmail(email)
+            .orElseThrow(() -> new RuntimeException("User not found"));
+        
+        Application application = applicationService.getApplicationByIdAndUser(id, currentUser.getId());
+        return ResponseEntity.ok(application);
     }
-
-    //update application
+    
+    // Update application 
     @PutMapping("/{id}")
-    public ResponseEntity<Application> updateApplication(@PathVariable Long id, @RequestBody Application application) {
-       try {
-        Application updated = applicationService.updateApplication(id, application);
+    public ResponseEntity<Application> updateApplication(
+            @PathVariable Long id,
+            @Valid @RequestBody Application application,
+            Authentication authentication) {
+        
+        String email = authentication.getName();
+        User currentUser = userService.findByEmail(email)
+            .orElseThrow(() -> new RuntimeException("User not found"));
+        
+        Application updated = applicationService.updateApplication(id, application, currentUser.getId());
         return ResponseEntity.ok(updated);
-       }
-       catch (RuntimeException e) {
-        return ResponseEntity.notFound().build();
-       }
     }
-
-    //delete application
+    
+    // Delete application
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteApplication(@PathVariable Long id) {
-        applicationService.deleteApplication(id);
+    public ResponseEntity<Void> deleteApplication(
+            @PathVariable Long id,
+            Authentication authentication) {
+        
+        String email = authentication.getName();
+        User currentUser = userService.findByEmail(email)
+            .orElseThrow(() -> new RuntimeException("User not found"));
+        
+        applicationService.deleteApplication(id, currentUser.getId());
         return ResponseEntity.noContent().build();
     }
-
-    //Update status only
+    
+    // Update status only 
     @PatchMapping("/{id}/status")
-    public ResponseEntity<Application> updateStatus(@PathVariable Long id, @RequestParam String status) {
-        try {
-            Application updated = applicationService.updateStatus(id, status);
-            return ResponseEntity.ok(updated);
+    public ResponseEntity<Application> updateStatus(
+            @PathVariable Long id,
+            @RequestBody StatusUpdateRequest request,
+            Authentication authentication) {
+        
+        String email = authentication.getName();
+        User currentUser = userService.findByEmail(email)
+            .orElseThrow(() -> new RuntimeException("User not found"));
+        
+        Application updated = applicationService.updateStatus(id, request.getStatus(), currentUser.getId());
+        return ResponseEntity.ok(updated);
+    }
+    
+    // DTO for status update
+    public static class StatusUpdateRequest {
+        private com.anson.internshiptracker.model.ApplicationStatus status;
+        
+        public com.anson.internshiptracker.model.ApplicationStatus getStatus() {
+            return status;
         }
-        catch (RuntimeException e) {
-            return ResponseEntity.notFound().build();
+        
+        public void setStatus(com.anson.internshiptracker.model.ApplicationStatus status) {
+            this.status = status;
         }
     }
-
 }
