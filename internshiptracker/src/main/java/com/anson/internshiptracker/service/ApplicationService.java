@@ -6,15 +6,21 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.Optional;
+import java.time.LocalDate;
+import com.anson.internshiptracker.model.ApplicationStatus;
 
 @Service
 public class ApplicationService {
     
-    @Autowired
-    private ApplicationRepository applicationRepository;
+    private final ApplicationRepository applicationRepository;
+    public ApplicationService(ApplicationRepository applicationRepository) {
+        this.applicationRepository = applicationRepository;
+    }
 
     //create new application
-    public Application createApplication (Application application) {
+    public Application createApplication(Application application) {
+        application.setStatus(ApplicationStatus.APPLIED);
+        application.setDateApplied(LocalDate.now());
         return applicationRepository.save(application);
     }
 
@@ -25,7 +31,7 @@ public class ApplicationService {
 
     //get application by ID
     public Optional<Application> getApplicationbyId(Long id) {
-        return applicationRepository.findById(id);
+        return applicationRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Application not found with id: " , id));
     }
 
     //update application
@@ -49,7 +55,7 @@ public class ApplicationService {
     public Application updateStatus(Long id, String status) {
     return applicationRepository.findById(id)
         .map(app -> {
-            app.setStatus(status);
+            app.setStatus(ApplicationStatus.valueOf(status));
             return applicationRepository.save(app);
         }).orElseThrow(() -> new RuntimeException("Application not found"));
 }

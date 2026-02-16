@@ -1,12 +1,14 @@
 package com.anson.internshiptracker.model;
 
+import lombok.Getter;
+import lombok.Setter;
 import jakarta.persistence.*;
-import lombok.Data;
 import java.time.LocalDate;
 
 @Entity
 @Table(name = "applications")
-@Data
+@Getter
+@Setter
 public class Application {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -14,10 +16,13 @@ public class Application {
 
     private String company;
     private String position;
-    private String status; // APPLIED, INTERVIEW, OFFER, REJECTED
+
+    @Enumerated(EnumType.STRING)
+    private ApplicationStatus status;
+    
     private LocalDate dateApplied;
 
-    @ManyToOne
+    @ManyToOne(optional = false)
     @JoinColumn(name = "user_id") 
     private User user; 
 }
