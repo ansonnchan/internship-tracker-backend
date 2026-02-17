@@ -54,17 +54,21 @@ Then run:
 
 1. Push backend repo to GitHub.
 2. In Render, create a new Web Service from your repo.
-3. Use:
+3. If Java runtime is available, use:
    - Root directory: `internshiptracker`
    - Build command: `./mvnw clean package -DskipTests`
    - Start command: `java -Dserver.port=$PORT -jar target/*.jar`
-4. Add env vars:
+4. If Java runtime is NOT listed in your Render account, deploy with Docker:
+   - Runtime: `Docker`
+   - Root directory: `internshiptracker`
+   - Render will use the included `Dockerfile` automatically.
+5. Add env vars:
    - `JWT_SECRET`
    - `SPRING_DATASOURCE_URL` (JDBC postgres URL)
    - `SPRING_DATASOURCE_USERNAME`
    - `SPRING_DATASOURCE_PASSWORD`
    - `CORS_ALLOWED_ORIGINS`
-5. After deploy, confirm `https://<your-backend-domain>/api/health`.
+6. After deploy, confirm `https://<your-backend-domain>/api/health`.
 
 `render.yaml` is included at repo root for blueprint-based setup.
 
